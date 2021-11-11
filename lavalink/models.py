@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from discord import client
 from abc import ABC, abstractmethod
 from random import randrange
 from time import time
@@ -68,9 +69,9 @@ class AudioTrack:
         Any extra properties given to this AudioTrack will be stored here.
     """
     __slots__ = ('track', 'identifier', 'is_seekable', 'author', 'duration', 'stream', 'title', 'uri', 'requester',
-                 'extra')
+                 'thumbnail', 'extra')
 
-    def __init__(self, data: dict, requester: int, **extra):
+    def __init__(self, data: dict, requester: client, **extra):
         try:
             self.track = data['track']
             self.identifier = data['info']['identifier']
@@ -80,11 +81,13 @@ class AudioTrack:
             self.stream = data['info']['isStream']
             self.title = data['info']['title']
             self.uri = data['info']['uri']
+            self.thumbnail = f'https://img.youtube.com/vi/{self.identifier}/hqdefault.jpg'
             self.requester = requester
             self.extra = extra
         except KeyError as ke:
             missing_key, = ke.args
-            raise InvalidTrack('Cannot build a track from partial data! (Missing key: {})'.format(missing_key)) from None
+            raise InvalidTrack(
+                'Cannot build a track from partial data! (Missing key: {})'.format(missing_key)) from None
 
     def __getitem__(self, name):
         return super().__getattribute__(name)
@@ -104,6 +107,7 @@ class BasePlayer(ABC):
     node: :class:`Node`
         The node that the player is connected to.
     """
+
     def __init__(self, guild_id, node):
         self.guild_id = str(guild_id)
         self.node = node
@@ -178,6 +182,7 @@ class DefaultPlayer(BasePlayer):
     current: :class:`AudioTrack`
         The track that is playing currently.
     """
+
     def __init__(self, guild_id, node):
         super().__init__(guild_id, node)
 
@@ -284,7 +289,8 @@ class DefaultPlayer(BasePlayer):
         else:
             self.queue.insert(index, at)
 
-    async def play(self, track: Union[AudioTrack, dict] = None, start_time: int = 0, end_time: int = 0, no_replace: bool = False):
+    async def play(self, track: Union[AudioTrack, dict] = None, start_time: int = 0, end_time: int = 0,
+                   no_replace: bool = False):
         """
         Plays the given track.
 
@@ -331,12 +337,14 @@ class DefaultPlayer(BasePlayer):
 
         if start_time is not None:
             if not isinstance(start_time, int) or not 0 <= start_time <= track.duration:
-                raise ValueError('start_time must be an int with a value equal to, or greater than 0, and less than the track duration')
+                raise ValueError(
+                    'start_time must be an int with a value equal to, or greater than 0, and less than the track duration')
             options['startTime'] = start_time
 
         if end_time is not None:
             if not isinstance(end_time, int) or not 0 <= end_time <= track.duration:
-                raise ValueError('end_time must be an int with a value equal to, or greater than 0, and less than the track duration')
+                raise ValueError(
+                    'end_time must be an int with a value equal to, or greater than 0, and less than the track duration')
             options['endTime'] = end_time
 
         if no_replace is None:
