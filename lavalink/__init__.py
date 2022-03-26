@@ -3,8 +3,8 @@
 __title__ = 'Lavalink'
 __author__ = 'Devoxin'
 __license__ = 'MIT'
-__copyright__ = 'Copyright 2017-2021 Devoxin'
-__version__ = '3.2.0'
+__copyright__ = 'Copyright 2017-present Devoxin'
+__version__ = '4.0.1'
 
 
 import inspect
@@ -14,16 +14,18 @@ import sys
 from .client import Client
 from .errors import AuthenticationError, InvalidTrack, NodeError
 from .events import (Event, NodeChangedEvent, NodeConnectedEvent,
-                     NodeDisconnectedEvent, QueueEndEvent, TrackEndEvent,
-                     TrackExceptionEvent, TrackStartEvent, TrackStuckEvent,
-                     WebSocketClosedEvent)
-from .filters import Equalizer, Filter, Karaoke, Timescale, Tremolo, Vibrato
-from .models import AudioTrack, BasePlayer, DefaultPlayer
+                     NodeDisconnectedEvent, PlayerUpdateEvent, QueueEndEvent,
+                     TrackEndEvent, TrackExceptionEvent, TrackStartEvent,
+                     TrackStuckEvent, WebSocketClosedEvent)
+from .filters import (ChannelMix, Equalizer, Filter, Karaoke, LowPass,
+                      Rotation, Timescale, Tremolo, Vibrato, Volume)
+from .models import (AudioTrack, BasePlayer, DefaultPlayer, DeferredAudioTrack,
+                     LoadResult, LoadType, PlaylistInfo, Source)
 from .node import Node
 from .nodemanager import NodeManager
 from .playermanager import PlayerManager
 from .stats import Penalty, Stats
-from .utils import decode_track, format_time, parse_time
+from .utils import decode_track, format_time, parse_time, timestamp_to_millis
 from .websocket import WebSocket
 
 
@@ -42,8 +44,36 @@ def enable_debug_logging():
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(fmt)
     log.addHandler(handler)
-
     log.setLevel(logging.DEBUG)
+
+
+def listener(*events: Event):
+    """
+    Marks this function as an event listener for Lavalink.py.
+    This **must** be used on class methods, and you must ensure that you register
+    decorated methods by using :func:`Client.add_event_hooks`.
+
+    Example:
+
+        .. code:: python
+
+            @listener()
+            async def on_lavalink_event(self, event):  # Event can be ANY Lavalink event
+                ...
+
+            @listener(TrackStartEvent)
+            async def on_track_start(self, event: TrackStartEvent):
+                ...
+
+    Parameters
+    ----------
+    events: List[:class:`Event`]
+        The events to listen for. Leave this empty to listen for all events.
+    """
+    def wrapper(func):
+        setattr(func, '_lavalink_events', events)
+        return func
+    return wrapper
 
 
 def add_event_hook(*hooks, event: Event = None):

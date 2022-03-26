@@ -74,7 +74,9 @@ class PlayerManager:
 
         Returns
         -------
-        List[:class:`DefaultPlayer`]
+        List[:class:`BasePlayer`]
+            This could be a :class:`DefaultPlayer` if no custom player implementation
+            was provided.
         """
         if not predicate:
             return list(self.players.values())
@@ -92,7 +94,9 @@ class PlayerManager:
 
         Returns
         -------
-        Optional[:class:`DefaultPlayer`]
+        Optional[:class:`BasePlayer`]
+            This could be a :class:`DefaultPlayer` if no custom player implementation
+            was provided.
         """
         return self.players.get(guild_id)
 
@@ -103,7 +107,7 @@ class PlayerManager:
         Parameters
         ----------
         guild_id: :class:`int`
-            The player that will be removed.
+            The player to remove from cache.
         """
         if guild_id in self.players:
             player = self.players.pop(guild_id)
@@ -138,7 +142,7 @@ class PlayerManager:
         -------
         :class:`BasePlayer`
             A class that inherits ``BasePlayer``. By default, the actual class returned will
-            be ``DefaultPlayer``, however if you have specified a custom player implementation,
+            be :class:`DefaultPlayer`, however if you have specified a custom player implementation,
             then this will be different.
         """
         if guild_id in self.players:
@@ -152,9 +156,10 @@ class PlayerManager:
         if not best_node:
             raise NodeError('No available nodes!')
 
-        self.players[guild_id] = player = self._player_cls(guild_id, best_node)
-        self._lavalink._logger.debug(
-            '[NODE-{}] Successfully created player for {}'.format(best_node.name, guild_id))
+        id_int = int(guild_id)
+        self.players[id_int] = player = self._player_cls(id_int, best_node)
+        self._lavalink._logger.debug('[PlayerManager] Created player with GuildId {} on node \'{}\''
+                                     .format(guild_id, best_node.name))
         return player
 
     async def destroy(self, guild_id: int):
@@ -177,10 +182,10 @@ class PlayerManager:
             return
 
         player = self.players.pop(guild_id)
+        player.cleanup()
 
-        if player.node and player.node.available:
-            await player.node._send(op='destroy', guildId=player.guild_id)
-            player.cleanup()
+        if player.node:
+            await player.node._send(op='destroy', guildId=player._internal_id)
 
-        self._lavalink._logger.debug(
-            '[NODE-{}] Successfully destroyed player {}'.format(player.node.name, guild_id))
+        self._lavalink._logger.debug('[PlayerManager] Destroyed player with GuildId {} on node \'{}\''
+                                     .format(guild_id, player.node.name if player.node else 'UNASSIGNED'))

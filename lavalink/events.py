@@ -27,19 +27,22 @@ class Event:
     """ The base for all Lavalink events. """
 
 
-class QueueEndEvent(Event):
+class TrackStartEvent(Event):
     """
-    This event is dispatched when there are no more songs in the queue.
+    This event is dispatched when the player starts to play a track.
 
     Attributes
     ----------
     player: :class:`BasePlayer`
-        The player that has no more songs in queue.
+        The player that started to play a track.
+    track: :class:`AudioTrack`
+        The track that started playing.
     """
-    __slots__ = ('player',)
+    __slots__ = ('player', 'track')
 
-    def __init__(self, player):
+    def __init__(self, player, track):
         self.player = player
+        self.track = track
 
 
 class TrackStuckEvent(Event):
@@ -97,8 +100,9 @@ class TrackEndEvent(Event):
     ----------
     player: :class:`BasePlayer`
         The player that finished playing a track.
-    track: :class:`AudioTrack`
+    track: Optional[:class:`AudioTrack`]
         The track that finished playing.
+        This could be ``None`` if Lavalink fails to encode the track.
     reason: :class:`str`
         The reason why the track stopped playing.
     """
@@ -110,22 +114,19 @@ class TrackEndEvent(Event):
         self.reason = reason
 
 
-class TrackStartEvent(Event):
+class QueueEndEvent(Event):
     """
-    This event is dispatched when the player starts to play a track.
+    This event is dispatched when there are no more songs in the queue.
 
     Attributes
     ----------
     player: :class:`BasePlayer`
-        The player that started to play a track.
-    track: :class:`AudioTrack`
-        The track that started playing.
+        The player that has no more songs in queue.
     """
-    __slots__ = ('player', 'track')
+    __slots__ = ('player',)
 
-    def __init__(self, player, track):
+    def __init__(self, player):
         self.player = player
-        self.track = track
 
 
 class PlayerUpdateEvent(Event):
@@ -137,16 +138,34 @@ class PlayerUpdateEvent(Event):
     player: :class:`BasePlayer`
         The player that's progress was updated.
     position: :class:`int`
-        The position of the player that was changed to.
+        The track's elapsed playback time in milliseconds.
     timestamp: :class:`int`
-        The timestamp that the player is currently on.
+        The track's elapsed playback time as an epoch timestamp in milliseconds.
+    connected: :class:`bool`
+        Whether or not the player is connected to the voice gateway.
     """
-    __slots__ = ('player', 'position', 'timestamp')
+    __slots__ = ('player', 'position', 'timestamp', 'connected')
 
-    def __init__(self, player, position, timestamp):
+    def __init__(self, player, raw_state):
         self.player = player
-        self.position = position
-        self.timestamp = timestamp
+        self.position = raw_state.get('position')
+        self.timestamp = raw_state.get('time')
+        self.connected = raw_state.get('connected')
+
+
+class NodeConnectedEvent(Event):
+    """
+    This event is dispatched when Lavalink.py successfully connects to a node.
+
+    Attributes
+    ----------
+    node: :class:`Node`
+        The node that was successfully connected to.
+    """
+    __slots__ = ('node',)
+
+    def __init__(self, node):
+        self.node = node
 
 
 class NodeDisconnectedEvent(Event):
@@ -168,21 +187,6 @@ class NodeDisconnectedEvent(Event):
         self.node = node
         self.code = code
         self.reason = reason
-
-
-class NodeConnectedEvent(Event):
-    """
-    This event is dispatched when Lavalink.py successfully connects to a node.
-
-    Attributes
-    ----------
-    node: :class:`Node`
-        The node that was successfully connected to.
-    """
-    __slots__ = ('node',)
-
-    def __init__(self, node):
-        self.node = node
 
 
 class NodeChangedEvent(Event):
